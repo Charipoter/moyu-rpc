@@ -1,4 +1,4 @@
-package com.moyu.rpc.mytimer;
+package com.moyu.rpc.timer;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.AllArgsConstructor;

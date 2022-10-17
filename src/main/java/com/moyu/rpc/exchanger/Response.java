@@ -1,2 +1,12 @@
-package com.moyu.rpc.exchanger;public class Response {
+package com.moyu.rpc.exchanger;
+
+import lombok.Data;
+
+@Data
+public class Response {
+
+    private Long id;
+
+    private Object result;
+
 }

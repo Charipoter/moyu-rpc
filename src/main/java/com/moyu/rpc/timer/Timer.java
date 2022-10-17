@@ -1,4 +1,4 @@
-package com.moyu.rpc.mytimer;
+package com.moyu.rpc.timer;
 
 import java.util.Set;
 import java.util.concurrent.Callable;
