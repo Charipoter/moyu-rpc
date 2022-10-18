@@ -1,5 +1,8 @@
-package com.moyu.rpc.timer;
+package com.moyu.rpc.timer.support;
 
+import com.moyu.rpc.timer.Timer;
+import com.moyu.rpc.timer.TimerTask;
+import com.moyu.rpc.timer.TimerTaskExecutor;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -139,13 +142,10 @@ public class TimeWheelTimer implements Timer {
      * 负责执行任务
      */
     private class Worker implements Runnable {
-
         private final AtomicInteger state;
-
         public static final int READY = 0;
         public static final int RUNNING = 1;
         public static final int SHUTDOWN = 2;
-
         public CompletableFuture<Set<TimerTask>> shutdownFuture;
 
         Worker() {
@@ -176,8 +176,8 @@ public class TimeWheelTimer implements Timer {
                     processTasks();
                     currentTick++;
                 }
-            } while (!isShutdown());
 
+            } while (!isShutdown());
             // worker 被 shutdown 了，但仍可能有任务在异步执行，关闭执行器拿到等待执行的任务
             afterShutdown();
         }
@@ -191,7 +191,6 @@ public class TimeWheelTimer implements Timer {
             for (TimeWheelBucket bucket : buckets) {
                 tasks.addAll(bucket.close());
             }
-
             shutdownFuture.complete(tasks);
         }
 
@@ -229,21 +228,19 @@ public class TimeWheelTimer implements Timer {
                     // worker 被 shutdown 了
                     return;
                 }
-
             }
-
         }
 
+        /**
+         * 将某个任务放入桶中
+         * 注意，某个任务可能由于任务队列太慢的原因，导致传输它的时候已经到了其的 deadline
+         * 此时只能把他放进下一个 tick 了
+         */
         private void transferTaskToBucket(TimerTask task) {
-            // 注意，某个任务可能由于任务队列太慢的原因，导致传输它的时候已经到了其的 deadline
-            // 此时只能把他放进下一个 tick 了
-
             // 需要跨越的 tick 数
             long passedTicks = task.deadline / tickDuration;
             // 需要跨越的轮转数
-            long round = (passedTicks - currentTick) / (buckets.length);
-
-            task.setRemainingRound(round);
+            task.setRemainingRound((passedTicks - currentTick) / (buckets.length));
             // 找到具体的桶，注意我们可能错过了这个任务的执行，我们不能把它放到之前的 tick 里
             long calculatedPassedTicks = Math.max(currentTick, passedTicks);
             int stopIndex = (int) calculatedPassedTicks % buckets.length;
@@ -324,7 +321,6 @@ public class TimeWheelTimer implements Timer {
          */
         public void runTasks() {
             Node node = head;
-
             while (node != null && !worker.isShutdown()) {
                 // 注意保存后继节点，否则删除当前节点后链路就断了
                 Node next = node.next;

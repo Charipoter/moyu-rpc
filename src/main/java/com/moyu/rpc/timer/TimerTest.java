@@ -1,5 +1,6 @@
 package com.moyu.rpc.timer;
 
+import com.moyu.rpc.timer.support.TimeWheelTimer;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -8,26 +9,27 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-public class TestTimer {
+/**
+ * junit 测试即使存在运行线程也会结束程序，所以需要在此测试
+ */
+public class TimerTest {
     @Slf4j
     private static class Task implements Runnable {
+        private final Timer timer;
+        private final long delay;
+        private final TimeUnit unit;
+        private final int segId;
 
-        private Timer timer;
-        private long delay;
-        private TimeUnit unit;
-
-        private int i;
-
-        Task(Timer timer, long delay, TimeUnit unit, int i) {
+        Task(Timer timer, long delay, TimeUnit unit, int segId) {
             this.timer = timer;
             this.delay = delay;
             this.unit = unit;
-            this.i = i;
+            this.segId = segId;
         }
 
         @Override
         public void run() {
-            log.debug(String.valueOf(i));
+            log.debug(String.valueOf(segId));
             timer.schedule(this, delay, unit);
         }
     }

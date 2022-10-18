@@ -1,5 +1,7 @@
-package com.moyu.rpc.timer;
+package com.moyu.rpc.timer.support;
 
+import com.moyu.rpc.timer.TimerTask;
+import com.moyu.rpc.timer.TimerTaskExecutor;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 
@@ -12,9 +14,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class InJvmTimerTaskExecutor implements TimerTaskExecutor {
 
-    private ExecutorService executor;
-
-    private BlockingQueue<Runnable> taskQueue;
+    private final ExecutorService executor;
+    private final BlockingQueue<Runnable> taskQueue;
 
     public InJvmTimerTaskExecutor() {
         this.taskQueue = new LinkedBlockingQueue<>();

@@ -9,45 +9,45 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * 异步请求的存放地
  */
-public class PendingExchange extends CompletableFuture<Object> {
+public class FutureReception extends CompletableFuture<Object> {
     // 存放请求，响应到了就 complete future
-    private static final Map<Long, PendingExchange> PENDING_MAP = new ConcurrentHashMap<>();
+    private static final Map<Long, FutureReception> FUTURE_MAP = new ConcurrentHashMap<>();
     // 单机唯一 id
-    private Long id;
+    private final Long id;
     // 发出的请求
-    private Request request;
+    private final Request request;
 
-    private PendingExchange(Request request) {
+    private FutureReception(Request request) {
         super();
         this.id = AutoIncId.newId();
         this.request = request;
         this.request.setId(id);
     }
 
-    public static PendingExchange pending(Request request) {
-        return pending(request, null);
+    public static FutureReception addFuture(Request request) {
+        return addFuture(request, null);
     }
 
     /**
      * 无需异步，自带结果
      */
-    public static PendingExchange pending(Request request, Object resultIfPresent) {
-        return pending(request, resultIfPresent, -1, null);
+    public static FutureReception addFuture(Request request, Object resultIfPresent) {
+        return addFuture(request, resultIfPresent, -1, null);
     }
 
-    public static PendingExchange pending(Request request, Object resultIfPresent, long timeout, TimeUnit unit) {
-        PendingExchange pendingExchange = new PendingExchange(request);
+    public static FutureReception addFuture(Request request, Object resultIfPresent, long timeout, TimeUnit unit) {
+        FutureReception futureReception = new FutureReception(request);
 
-        PENDING_MAP.put(pendingExchange.getId(), pendingExchange);
+        FUTURE_MAP.put(futureReception.getId(), futureReception);
 
         if (resultIfPresent != null) {
-            pendingExchange.complete(resultIfPresent);
+            futureReception.complete(resultIfPresent);
         } else if (timeout > 0) {
             // 开启定时检查超时任务
 
         }
 
-        return pendingExchange;
+        return futureReception;
     }
 
     /**
@@ -62,10 +62,10 @@ public class PendingExchange extends CompletableFuture<Object> {
             return;
         }
 
-        PendingExchange pendingExchange = PENDING_MAP.remove(id);
-        if (pendingExchange != null) {
+        FutureReception futureReception = FUTURE_MAP.remove(id);
+        if (futureReception != null) {
             // 暂时就那么简单
-            pendingExchange.complete(response.getResult());
+            futureReception.complete(response.getResult());
 
         }
 

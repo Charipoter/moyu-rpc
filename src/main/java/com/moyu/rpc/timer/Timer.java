@@ -9,7 +9,6 @@ import java.util.concurrent.TimeUnit;
  * 延迟任务调度器
  */
 public interface Timer {
-
     void schedule(Runnable task, long delay, TimeUnit unit);
     CompletableFuture<Object> schedule(Callable<Object> task, long delay, TimeUnit unit);
     /**
