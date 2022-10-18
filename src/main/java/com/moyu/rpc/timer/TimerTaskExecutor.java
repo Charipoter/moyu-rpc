@@ -1,6 +1,7 @@
 package com.moyu.rpc.timer;
 
 import java.util.Collection;
+import java.util.Set;
 
 /**
  * 用于并发处理一堆任务
@@ -12,6 +13,10 @@ public interface TimerTaskExecutor {
     void execute(Collection<? extends TimerTask> tasks);
 
     void execute(TimerTask task);
+    /**
+     * 关闭执行器并返回还未被执行的任务
+     */
+    Set<TimerTask> close();
 
 
 }

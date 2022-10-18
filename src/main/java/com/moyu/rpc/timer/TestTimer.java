@@ -2,7 +2,10 @@ package com.moyu.rpc.timer;
 
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 public class TestTimer {
@@ -30,13 +33,32 @@ public class TestTimer {
     }
 
     public static void main(String[] args) {
-        TimeUnit unit = TimeUnit.SECONDS;
-        Timer timer = new TimeWheelTimer(10, TimeUnit.MILLISECONDS);
-        for (int i = 0; i < 100; i++) {
-            int delay = ThreadLocalRandom.current().nextInt(4) + 1;
+        TimeUnit unit = TimeUnit.MILLISECONDS;
+        Timer timer = new TimeWheelTimer(100, TimeUnit.MILLISECONDS);
+        long delay = 1000;
+
+        List<Task> ts = new ArrayList<>();
+        for (int i = 0; i < 1000; i++) {
+
             Task task = new Task(timer, delay, unit, i);
+            ts.add(task);
+        }
+        for (Task task : ts) {
             timer.schedule(task, delay, unit);
         }
+
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        Set<TimerTask> tasks = null;
+        try {
+            tasks = timer.close().get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
+        System.out.println(tasks.size());
 
     }
 

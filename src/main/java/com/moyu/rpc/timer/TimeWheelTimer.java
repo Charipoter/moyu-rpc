@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -42,6 +43,11 @@ public class TimeWheelTimer implements Timer {
      * 异步执行器
      */
     private TimerTaskExecutor executor;
+    /**
+     * 如果提交的是 Runnable，默认返回该结果
+     */
+    private Object defaultResult = new Object();
+
     public TimeWheelTimer(long tickDuration, TimeUnit unit) {
         this.worker = new Worker();
 
@@ -83,20 +89,22 @@ public class TimeWheelTimer implements Timer {
     }
 
     @Override
-    public CompletableFuture<Object> schedule(Runnable task, long delay, TimeUnit unit) {
+    public void schedule(Runnable task, long delay, TimeUnit unit) {
+        if (worker.isShutdown()) {
+            return;
+        }
         TimerTask timerTask = new TimerTask(task, deadlineForDelay(delay, unit), this);
-        return submitTask(timerTask);
+        outOfWheelTasks.add(timerTask);
     }
 
     @Override
     public CompletableFuture<Object> schedule(Callable<Object> task, long delay, TimeUnit unit) {
+        if (worker.isShutdown()) {
+            return CompletableFuture.completedFuture(defaultResult);
+        }
         TimerTask timerTask = new TimerTask(task, deadlineForDelay(delay, unit), this);
-        return submitTask(timerTask);
-    }
-
-    private CompletableFuture<Object> submitTask(TimerTask task) {
-        outOfWheelTasks.add(task);
-        return task.getFuture();
+        outOfWheelTasks.add(timerTask);
+        return timerTask.getFuture();
     }
 
     private long deadlineForDelay(long delay, TimeUnit unit) {
@@ -109,9 +117,14 @@ public class TimeWheelTimer implements Timer {
         return deadline;
     }
 
+    /**
+     * 关闭相关线程并返回未处理完的任务
+     */
     @Override
-    public Set<TimerTask> close() {
-        return null;
+    public CompletableFuture<Set<TimerTask>> close() {
+        // shutdown worker
+        worker.shutdown();
+        return worker.shutdownFuture;
     }
 
     /**
@@ -125,8 +138,11 @@ public class TimeWheelTimer implements Timer {
         public static final int RUNNING = 1;
         public static final int SHUTDOWN = 2;
 
+        public CompletableFuture<Set<TimerTask>> shutdownFuture;
+
         Worker() {
             this.state = new AtomicInteger(READY);
+            this.shutdownFuture = new CompletableFuture<>();
         }
 
         public boolean tryStart() {
@@ -152,22 +168,32 @@ public class TimeWheelTimer implements Timer {
                 currentTick++;
             } while (!isShutdown());
 
-            // 处理未被执行的任务
+            // worker 被 shutdown 了，但仍可能有任务在异步执行，关闭执行器拿到等待执行的任务
+            afterShutdown();
+        }
 
+        private void afterShutdown() {
+            // 未进入时间轮的任务
+            Set<TimerTask> tasks = new HashSet<>(outOfWheelTasks);
+            // 异步执行器未处理的
+            tasks.addAll(executor.close());
+            // 桶内未处理的
+            for (TimeWheelBucket bucket : buckets) {
+                tasks.addAll(bucket.close());
+            }
+
+            shutdownFuture.complete(tasks);
         }
 
         private void processTasks() {
-
             // 找到对应的桶，并发执行任务
             TimeWheelBucket bucket = buckets[currentTick % buckets.length];
             bucket.runTasks();
-
         }
 
         private void waitUntilNextTick() {
             long currentTime = System.nanoTime() - startTime;
             long nextTickStartTime = (currentTick + 1) * tickDuration;
-
             long timeToWait = nextTickStartTime - currentTime;
 
             // 我们错过了某一个 tick，赶紧返回去执行
@@ -202,15 +228,15 @@ public class TimeWheelTimer implements Timer {
             // 注意，某个任务可能由于任务队列太慢的原因，导致传输它的时候已经到了其的 deadline
             // 此时只能把他放进下一个 tick 了
 
-            // 需要跨越的 tick 数，我们会把其放到第 tick 个桶内
+            // 需要跨越的 tick 数
             long passedTicks = task.deadline / tickDuration;
             // 需要跨越的轮转数
             long round = (passedTicks - currentTick) / (buckets.length);
 
             task.setRemainingRound(round);
             // 找到具体的桶，注意我们可能错过了这个任务的执行，我们不能把它放到之前的 tick 里
-            long optimizedPassedTicks = Math.max(currentTick, passedTicks);
-            int stopIndex = (int) optimizedPassedTicks % buckets.length;
+            long calculatedPassedTicks = Math.max(currentTick, passedTicks);
+            int stopIndex = (int) calculatedPassedTicks % buckets.length;
 
             TimeWheelBucket bucket = buckets[stopIndex];
             bucket.addTask(task);
@@ -285,7 +311,10 @@ public class TimeWheelTimer implements Timer {
             Node node = head;
 
             while (node != null) {
+                // 注意保存后继节点，否则删除当前节点后链路就断了
+                Node next = node.next;
                 TimerTask task = node.task;
+
                 if (task.isCancelled()) {
                     removeNode(node);
                 } else if (task.remainingRound <= 0) {
@@ -295,8 +324,23 @@ public class TimeWheelTimer implements Timer {
                 } else {
                     task.remainingRound--;
                 }
-                node = node.next;
+                node = next;
             }
+        }
+        /**
+         * 拿到桶内剩下的任务
+         */
+        public Set<TimerTask> close() {
+            if (worker.isShutdown()) {
+                Set<TimerTask> tasks = new HashSet<>();
+                Node node = head;
+                while (node != null) {
+                    tasks.add(node.task);
+                    node = node.next;
+                }
+                return tasks;
+            }
+            throw new UnsupportedOperationException("worker 还在运行，不能关闭桶");
         }
 
     }

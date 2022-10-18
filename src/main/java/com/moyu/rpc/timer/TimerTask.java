@@ -6,6 +6,7 @@ import lombok.ToString;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 
 /**
  * 定时任务本身
@@ -38,10 +39,7 @@ public class TimerTask implements Runnable {
     private static final Object defaultResult = null;
 
     public TimerTask(Runnable task, long deadline, Timer timer) {
-        this(() -> {
-            task.run();
-            return defaultResult;
-        }, deadline, timer);
+        this(Executors.callable(task, defaultResult), deadline, timer);
     }
 
     public TimerTask(Callable<Object> task, long deadline, Timer timer) {

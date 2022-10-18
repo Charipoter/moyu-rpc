@@ -10,11 +10,11 @@ import java.util.concurrent.TimeUnit;
  */
 public interface Timer {
 
-    CompletableFuture<Object> schedule(Runnable task, long delay, TimeUnit unit);
+    void schedule(Runnable task, long delay, TimeUnit unit);
     CompletableFuture<Object> schedule(Callable<Object> task, long delay, TimeUnit unit);
     /**
      * 返回未执行完的任务
      */
-    Set<TimerTask> close();
+    CompletableFuture<Set<TimerTask>> close();
 
 }
