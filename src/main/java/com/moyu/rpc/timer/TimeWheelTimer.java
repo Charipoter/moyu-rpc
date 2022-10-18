@@ -14,14 +14,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 public class TimeWheelTimer implements Timer {
 
-    private Worker worker;
-    private Thread workerThread;
+    private final Worker worker;
+    private final Thread workerThread;
     /**
      * 相对开启时间
      */
     private volatile long startTime;
 
-    private ThreadFactory threadFactory;
+    private final ThreadFactory threadFactory;
 
     /**
      * 当前已经处理过了哪个 tick
@@ -30,23 +30,23 @@ public class TimeWheelTimer implements Timer {
     /**
      * 每个 tick 占多少时间，代表了精度
      */
-    private long tickDuration;
+    private final long tickDuration;
     /**
      * 时间轮的每一个 tick
      */
-    private TimeWheelBucket buckets[];
+    private final TimeWheelBucket[] buckets;
     /**
      * 为了更好地控制，任务并不是直接给到时间轮，放进队列里，由 worker 具体放入
      */
-    private BlockingQueue<TimerTask> outOfWheelTasks;
+    private final BlockingQueue<TimerTask> outOfWheelTasks;
     /**
      * 异步执行器
      */
-    private TimerTaskExecutor executor;
+    private final TimerTaskExecutor executor;
     /**
      * 如果提交的是 Runnable，默认返回该结果
      */
-    private Object defaultResult = new Object();
+    private final Object defaultResult = new Object();
 
     public TimeWheelTimer(long tickDuration, TimeUnit unit) {
         this.worker = new Worker();
@@ -78,12 +78,10 @@ public class TimeWheelTimer implements Timer {
     }
 
     private void start() {
-
         // worker 只允许一次性的运行停止
         if (worker.isReady() && worker.tryStart()) {
             workerThread.start();
         }
-
     }
 
     @Override
