@@ -1,26 +1,16 @@
-import com.moyu.rpc.timer.support.TimeWheelTimer;
-import com.moyu.rpc.timer.Timer;
+import com.moyu.rpc.exchange.ExchangeClient;
+import com.moyu.rpc.exchange.support.netty.NettyExchangeClient;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.TimeUnit;
+import java.net.InetSocketAddress;
+import java.util.Scanner;
 
 @Slf4j
 public class MainTest {
 
     @Test
-    void timer() {
-
-        Timer timer = new TimeWheelTimer(1, TimeUnit.MILLISECONDS);
-
-        Runnable cmd = () -> log.debug("1111");
-
-        Runnable timedTask = () -> {
-            cmd.run();
-            timer.schedule(cmd, 2, TimeUnit.SECONDS);
-        };
-
-        timer.schedule(timedTask, 2, TimeUnit.SECONDS);
+    void exchange() {
 
     }
 

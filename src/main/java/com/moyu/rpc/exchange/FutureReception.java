@@ -1,9 +1,8 @@
-package com.moyu.rpc.exchanger;
+package com.moyu.rpc.exchange;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -28,24 +27,15 @@ public class FutureReception extends CompletableFuture<Object> {
         return addFuture(request, null);
     }
 
-    /**
-     * 无需异步，自带结果
-     */
     public static FutureReception addFuture(Request request, Object resultIfPresent) {
-        return addFuture(request, resultIfPresent, -1, null);
-    }
-
-    public static FutureReception addFuture(Request request, Object resultIfPresent, long timeout, TimeUnit unit) {
         FutureReception futureReception = new FutureReception(request);
 
         FUTURE_MAP.put(futureReception.getId(), futureReception);
 
         if (resultIfPresent != null) {
             futureReception.complete(resultIfPresent);
-        } else if (timeout > 0) {
-            // 开启定时检查超时任务
-
         }
+        // 开启定时检查超时任务
 
         return futureReception;
     }
@@ -55,12 +45,7 @@ public class FutureReception extends CompletableFuture<Object> {
      */
     public static void receive(Response response) {
 
-        Long id = response.getId();
-
-        if (id == null) {
-            // ???
-            return;
-        }
+        long id = response.getId();
 
         FutureReception futureReception = FUTURE_MAP.remove(id);
         if (futureReception != null) {
