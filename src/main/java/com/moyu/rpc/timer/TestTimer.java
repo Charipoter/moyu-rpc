@@ -38,7 +38,7 @@ public class TestTimer {
         long delay = 1000;
 
         List<Task> ts = new ArrayList<>();
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 10; i++) {
 
             Task task = new Task(timer, delay, unit, i);
             ts.add(task);

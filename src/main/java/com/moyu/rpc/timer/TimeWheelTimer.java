@@ -66,8 +66,6 @@ public class TimeWheelTimer implements Timer {
         this.buckets = createBuckets();
 
         this.startTime = -1;
-        // 也许该方法可以换个位置？
-        start();
     }
 
     private TimeWheelBucket[] createBuckets() {
@@ -93,6 +91,8 @@ public class TimeWheelTimer implements Timer {
         if (worker.isShutdown()) {
             return;
         }
+        preSchedule();
+
         TimerTask timerTask = new TimerTask(task, deadlineForDelay(delay, unit), this);
         outOfWheelTasks.add(timerTask);
     }
@@ -102,9 +102,19 @@ public class TimeWheelTimer implements Timer {
         if (worker.isShutdown()) {
             return CompletableFuture.completedFuture(defaultResult);
         }
+        preSchedule();
+
         TimerTask timerTask = new TimerTask(task, deadlineForDelay(delay, unit), this);
         outOfWheelTasks.add(timerTask);
         return timerTask.getFuture();
+    }
+    /**
+     * 检查 startTime 是否设置，否则 deadline 将计算有误
+     */
+    private void preSchedule() {
+        if (startTime < 0) {
+            start();
+        }
     }
 
     private long deadlineForDelay(long delay, TimeUnit unit) {
@@ -164,8 +174,10 @@ public class TimeWheelTimer implements Timer {
                 // 处理当前 tick，注意可能没法在 tick 持续时间内处理完，解决方案：
                 // 1. 使用多线程处理
                 // 2. 对于没处理完的，延后一个 tick
-                processTasks();
-                currentTick++;
+                if (!isShutdown()) {
+                    processTasks();
+                    currentTick++;
+                }
             } while (!isShutdown());
 
             // worker 被 shutdown 了，但仍可能有任务在异步执行，关闭执行器拿到等待执行的任务
@@ -256,6 +268,8 @@ public class TimeWheelTimer implements Timer {
 
         public void shutdown() {
             state.set(SHUTDOWN);
+            // 如若 worker 在等待下一个 tick，将其唤醒
+            workerThread.interrupt();
         }
     }
 
@@ -307,10 +321,13 @@ public class TimeWheelTimer implements Timer {
             size--;
         }
 
+        /**
+         * 执行桶内任务，注意 worker 可能在执行时被 shutdown
+         */
         public void runTasks() {
             Node node = head;
 
-            while (node != null) {
+            while (node != null && !worker.isShutdown()) {
                 // 注意保存后继节点，否则删除当前节点后链路就断了
                 Node next = node.next;
                 TimerTask task = node.task;
