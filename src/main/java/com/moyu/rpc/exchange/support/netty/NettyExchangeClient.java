@@ -11,8 +11,6 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.string.StringDecoder;
-import io.netty.handler.codec.string.StringEncoder;
 
 import java.net.InetSocketAddress;
 import java.util.Scanner;
@@ -47,10 +45,10 @@ public class NettyExchangeClient extends AbstractExchangeClient {
 
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
+                // 添加编解码器
+                NettyCodec.apply(ch);
+
                 ch.pipeline()
-                        // TODO: 添加编解码器
-                        .addLast("decoder", new StringDecoder())
-                        .addLast("encoder", new StringEncoder())
 //                        .addLast("client-idle-handler", new IdleStateHandler(heartbeatInterval, 0, 0, MILLISECONDS))
                         .addLast("handler", nettyClientHandler);
             }
@@ -71,7 +69,11 @@ public class NettyExchangeClient extends AbstractExchangeClient {
 
     @Override
     protected void doSend(Request request) {
-        channel.writeAndFlush(request);
+        try {
+            channel.writeAndFlush(request).sync();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static void main(String[] args) {

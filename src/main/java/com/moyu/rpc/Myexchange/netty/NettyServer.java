@@ -1,38 +1,38 @@
-package com.moyu.rpc.exchange.support.netty;
+package com.moyu.rpc.Myexchange.netty;
 
-import com.moyu.rpc.exchange.support.AbstractExchangeServer;
+import com.moyu.rpc.Myexchange.AbstractConnection;
+import com.moyu.rpc.Myexchange.AbstractServer;
+import com.moyu.rpc.Myexchange.Connection;
+import com.moyu.rpc.Myexchange.Server;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import lombok.NoArgsConstructor;
 
 import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
 
-@NoArgsConstructor
-public class NettyExchangeServer extends AbstractExchangeServer {
+public class NettyServer extends AbstractServer {
 
-    private Channel channel;
     private ServerBootstrap bootstrap;
-    private final NioEventLoopGroup bossGroup = new NioEventLoopGroup(1);
-    private final NioEventLoopGroup workGroup = new NioEventLoopGroup();
 
-    public NettyExchangeServer(InetSocketAddress serverAddress) {
-        super(serverAddress);
+    private NioEventLoopGroup bossGroup;
+    private NioEventLoopGroup workGroup;
+
+    public NettyServer(InetSocketAddress localAddress) {
+        super(localAddress);
     }
 
-
     @Override
-    public void open() {
-        final NettyServerHandler nettyServerHandler = new NettyServerHandler();
+    protected void doOpen() {
+        bossGroup = new NioEventLoopGroup(1);
+        workGroup = new NioEventLoopGroup();
         bootstrap = new ServerBootstrap();
 
+        NettyHandler handler = new NettyHandler();
         bootstrap.group(bossGroup, workGroup)
                 .channel(NioServerSocketChannel.class)
                 .option(ChannelOption.SO_REUSEADDR, true)
@@ -49,23 +49,28 @@ public class NettyExchangeServer extends AbstractExchangeServer {
 
                         ch.pipeline()
 //                                .addLast("server-idle-handler", new IdleStateHandler(0, 0, idleTimeout, MILLISECONDS))
-                                .addLast("handler", nettyServerHandler);
+                                .addLast("handler", handler);
                     }
                 });
 
-        ChannelFuture channelFuture = bootstrap.bind(getServerAddress());
-        channelFuture.syncUninterruptibly();
-        channel = channelFuture.channel();
+        ChannelFuture future = bootstrap.bind(getLocalAddress());
+
+        Connection connection = new NettyConnection(future.channel());
+        handler.setConnection(connection);
+        ((AbstractConnection) connection).setTargetAddress(getLocalAddress());
+        addConnection(connection);
+
+        future.syncUninterruptibly();
     }
 
     @Override
-    public void close() {
-
+    protected void doClose() {
+        bossGroup.shutdownGracefully();
+        workGroup.shutdownGracefully();
     }
 
-    public static void main(String[] args) throws MalformedURLException {
-        NettyExchangeServer server = new NettyExchangeServer(
-                new InetSocketAddress("localhost", 8080));
+    public static void main(String[] args) {
+        Server server = new NettyServer(new InetSocketAddress("localhost", 8080));
         server.open();
     }
 }

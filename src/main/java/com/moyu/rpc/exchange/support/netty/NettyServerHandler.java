@@ -4,9 +4,16 @@ import com.moyu.rpc.exchange.ExchangeHandler;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 
+import java.net.InetSocketAddress;
+
 public class NettyServerHandler extends ChannelDuplexHandler {
 
     private ExchangeHandler handler = new NettyExchangeHandler();
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        handler.connected((InetSocketAddress) ctx.channel().remoteAddress());
+    }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {

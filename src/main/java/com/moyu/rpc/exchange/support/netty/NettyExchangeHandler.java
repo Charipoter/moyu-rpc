@@ -4,6 +4,8 @@ import com.moyu.rpc.exchange.Request;
 import com.moyu.rpc.exchange.Response;
 import com.moyu.rpc.exchange.support.AbstractExchangeHandler;
 
+import java.net.InetSocketAddress;
+
 public class NettyExchangeHandler extends AbstractExchangeHandler {
 
     @Override
@@ -19,6 +21,11 @@ public class NettyExchangeHandler extends AbstractExchangeHandler {
     @Override
     protected void doReceive(Response response) {
         System.out.println(response);
+    }
+
+    @Override
+    public void connected(InetSocketAddress address) {
+        System.out.println("连接上了" + address);
     }
 
     @Override
