@@ -1,8 +1,8 @@
-package com.moyu.rpc.Myexchange.netty;
+package com.moyu.rpc.exchange.netty;
 
-import com.moyu.rpc.Myexchange.AbstractClient;
-import com.moyu.rpc.Myexchange.Client;
-import com.moyu.rpc.Myexchange.Connection;
+import com.moyu.rpc.exchange.AbstractClient;
+import com.moyu.rpc.exchange.Client;
+import com.moyu.rpc.exchange.Connection;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;

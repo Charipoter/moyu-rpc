@@ -1,7 +1,7 @@
-package com.moyu.rpc.Myexchange.netty;
+package com.moyu.rpc.exchange.netty;
 
-import com.moyu.rpc.Myexchange.AbstractConnection;
-import com.moyu.rpc.Myexchange.Message;
+import com.moyu.rpc.exchange.AbstractConnection;
+import com.moyu.rpc.exchange.Message;
 import io.netty.channel.Channel;
 
 import java.net.InetSocketAddress;

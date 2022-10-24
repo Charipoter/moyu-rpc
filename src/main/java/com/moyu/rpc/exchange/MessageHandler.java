@@ -1,4 +1,4 @@
-package com.moyu.rpc.Myexchange;
+package com.moyu.rpc.exchange;
 
 /**
  * 收到消息后的处理

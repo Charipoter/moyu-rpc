@@ -1,8 +1,8 @@
-package com.moyu.rpc.Myexchange.netty;
+package com.moyu.rpc.exchange.netty;
 
-import com.moyu.rpc.Myexchange.Connection;
-import com.moyu.rpc.Myexchange.Message;
-import com.moyu.rpc.Myexchange.MessageHandler;
+import com.moyu.rpc.exchange.Connection;
+import com.moyu.rpc.exchange.Message;
+import com.moyu.rpc.exchange.MessageHandler;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.Setter;

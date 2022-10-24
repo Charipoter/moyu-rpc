@@ -1,4 +1,4 @@
-package com.moyu.rpc.Myexchange;
+package com.moyu.rpc.exchange;
 
 /**
  * 消息的监听器，由于拓展处理

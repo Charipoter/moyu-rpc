@@ -1,4 +1,4 @@
-package com.moyu.rpc.Myexchange;
+package com.moyu.rpc.exchange;
 
 import java.net.InetSocketAddress;
 
