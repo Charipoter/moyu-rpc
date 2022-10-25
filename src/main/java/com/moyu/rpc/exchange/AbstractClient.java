@@ -108,16 +108,16 @@ public abstract class AbstractClient implements Client {
     protected abstract void doDisconnect();
 
     @Override
-    public void close() {
+    public synchronized void close() {
         int s = state.get();
         if (s == CLOSE) {
             return;
         }
-        if (state.compareAndSet(OPEN, CLOSE)) {
-            connection.close();
-            // 进行额外资源的关闭
-            doClose();
-        }
+        state.set(CLOSE);
+        connection.close();
+        // 进行额外资源的关闭
+        doClose();
+
     }
 
     protected abstract void doClose();

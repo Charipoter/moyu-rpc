@@ -22,9 +22,12 @@ public class RetryConnectionListener extends AbstractListener {
 
     @Override
     public void onDisConnected(InetSocketAddress remoteAddress) {
-        ReconnectTask task = new ReconnectTask(timer);
-        // 3 秒后尝试重连
-        timer.schedule(task, 3, TimeUnit.SECONDS);
+
+        if (!client.isClosed()) {
+            ReconnectTask task = new ReconnectTask(timer);
+            // 3 秒后尝试重连
+            timer.schedule(task, 3, TimeUnit.SECONDS);
+        }
 
     }
 
