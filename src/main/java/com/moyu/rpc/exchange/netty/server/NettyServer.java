@@ -1,9 +1,9 @@
-package com.moyu.rpc.exchange.netty;
+package com.moyu.rpc.exchange.netty.server;
 
-import com.moyu.rpc.exchange.AbstractConnection;
 import com.moyu.rpc.exchange.AbstractServer;
-import com.moyu.rpc.exchange.Connection;
 import com.moyu.rpc.exchange.Server;
+import com.moyu.rpc.exchange.netty.NettyCodec;
+import com.moyu.rpc.exchange.netty.NettyConnection;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
@@ -18,9 +18,9 @@ import java.net.InetSocketAddress;
 public class NettyServer extends AbstractServer {
 
     private ServerBootstrap bootstrap;
-
     private NioEventLoopGroup bossGroup;
     private NioEventLoopGroup workGroup;
+    private NettyConnection connection;
 
     public NettyServer(InetSocketAddress localAddress) {
         super(localAddress);
@@ -32,7 +32,7 @@ public class NettyServer extends AbstractServer {
         workGroup = new NioEventLoopGroup();
         bootstrap = new ServerBootstrap();
 
-        NettyHandler handler = new NettyHandler();
+        NettyServerHandler handler = new NettyServerHandler();
         bootstrap.group(bossGroup, workGroup)
                 .channel(NioServerSocketChannel.class)
                 .option(ChannelOption.SO_REUSEADDR, true)
@@ -42,11 +42,8 @@ public class NettyServer extends AbstractServer {
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel ch) throws Exception {
-                        // FIXME: should we use getTimeout()?
-//                        int idleTimeout = UrlUtils.getIdleTimeout(getUrl());
                         // 添加编解码器
                         NettyCodec.apply(ch);
-
                         ch.pipeline()
 //                                .addLast("server-idle-handler", new IdleStateHandler(0, 0, idleTimeout, MILLISECONDS))
                                 .addLast("handler", handler);
@@ -55,10 +52,12 @@ public class NettyServer extends AbstractServer {
 
         ChannelFuture future = bootstrap.bind(getLocalAddress());
 
-        Connection connection = new NettyConnection(future.channel());
-        handler.setConnection(connection);
-        ((AbstractConnection) connection).setTargetAddress(getLocalAddress());
+        connection = new NettyConnection(future.channel());
+        connection.setTargetAddress(getLocalAddress());
+        connection.addListener(new NettyServerListener());
         addConnection(connection);
+
+        handler.setConnection(connection);
 
         future.syncUninterruptibly();
     }

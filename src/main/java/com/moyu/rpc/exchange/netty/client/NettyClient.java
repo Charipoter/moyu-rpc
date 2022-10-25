@@ -1,8 +1,10 @@
-package com.moyu.rpc.exchange.netty;
+package com.moyu.rpc.exchange.netty.client;
 
 import com.moyu.rpc.exchange.AbstractClient;
 import com.moyu.rpc.exchange.Client;
 import com.moyu.rpc.exchange.Connection;
+import com.moyu.rpc.exchange.netty.NettyCodec;
+import com.moyu.rpc.exchange.netty.NettyConnection;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
@@ -39,14 +41,12 @@ public class NettyClient extends AbstractClient {
 //        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Math.max(DEFAULT_CONNECT_TIMEOUT, getConnectTimeout()));
 
         // 创建 handler
-        NettyHandler handler = new NettyHandler();
+        NettyClientHandler handler = new NettyClientHandler();
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
-
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
                 // 添加编解码器
                 NettyCodec.apply(ch);
-
                 ch.pipeline()
 //                        .addLast("client-idle-handler", new IdleStateHandler(heartbeatInterval, 0, 0, MILLISECONDS))
                         .addLast("handler", handler);
@@ -55,9 +55,14 @@ public class NettyClient extends AbstractClient {
         bootstrap.remoteAddress(getRemoteAddress());
         ChannelFuture future = bootstrap.connect();
 
-        Connection connection = new NettyConnection(future.channel());
+        // 创建连接
+        NettyConnection connection = new NettyConnection(future.channel());
+        setConnection(connection);
+        setLocalAddress(connection.getLocalAddress());
+        // 让 handler 进行桥接
         handler.setConnection(connection);
-        setLocalAddress(connection.getSourceAddress());
+        // 添加客户端需要的用于基本处理的监听器
+        connection.addListener(new NettyClientListener());
 
         future.syncUninterruptibly();
 
@@ -66,10 +71,11 @@ public class NettyClient extends AbstractClient {
 
     @Override
     protected Connection doReConnect() {
-        if (!isOpen()) {
-            return doConnect();
-        }
-        throw new UnsupportedOperationException("客户端未关闭");
+        ChannelFuture future = bootstrap.connect();
+
+        future.syncUninterruptibly();
+
+        return getConnection();
     }
 
     @Override
@@ -83,9 +89,12 @@ public class NettyClient extends AbstractClient {
         client.open();
 
         Scanner scanner = new Scanner(System.in);
-
-        while (true) {
+        for (;;) {
             String msg = scanner.nextLine();
+            if (msg.equals("quit")) {
+                client.close();
+                break;
+            }
             client.send(msg);
         }
     }

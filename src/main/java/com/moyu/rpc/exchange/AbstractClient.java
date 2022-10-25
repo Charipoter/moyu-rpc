@@ -5,15 +5,20 @@ import lombok.Setter;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Getter
 @Setter
 public abstract class AbstractClient implements Client {
+
+    private static final int NEW = 0;
+    private static final int OPEN = 1;
+    private static final int CLOSE = -1;
+
+    private AtomicInteger state = new AtomicInteger(NEW);
     private Connection connection;
     private InetSocketAddress localAddress;
     private InetSocketAddress remoteAddress;
-
-    private volatile boolean isOpen = false;
 
     public AbstractClient(InetSocketAddress remoteAddress) {
         this.remoteAddress = remoteAddress;
@@ -36,13 +41,23 @@ public abstract class AbstractClient implements Client {
 
     @Override
     public void open() {
-        // 尝试连上远程
-        connect();
-        isOpen = true;
+
+        int s = state.get();
+        if (s == OPEN) {
+
+        } else if (s == CLOSE && state.compareAndSet(CLOSE, OPEN)) {
+            // 关闭了又开启，对于客户端属于重连的情形
+            reConnect();
+        } else if (s == NEW && state.compareAndSet(NEW, OPEN)) {
+            connect();
+        } else {
+            throw new RuntimeException("不存在的客户端状态");
+        }
     }
 
     @Override
     public void connect() {
+        // 交给子类完成
         connection = doConnect();
     }
 
@@ -50,6 +65,7 @@ public abstract class AbstractClient implements Client {
 
     @Override
     public void reConnect() {
+        // 交给子类完成
         connection = doReConnect();
     }
 
@@ -57,10 +73,13 @@ public abstract class AbstractClient implements Client {
 
     @Override
     public void close() {
-        // 关闭连接
-        if (isOpen) {
+        int s = state.get();
+        if (s == CLOSE) {
+            return;
+        }
+        if (state.compareAndSet(OPEN, CLOSE)) {
             connection.close();
-            // 子类进行额外的关闭
+            // 进行额外资源的关闭
             doClose();
         }
     }

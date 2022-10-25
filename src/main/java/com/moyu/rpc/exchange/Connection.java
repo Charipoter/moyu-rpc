@@ -21,10 +21,10 @@ public interface Connection {
     /**
      * 获取源 url
      */
-    InetSocketAddress getSourceAddress();
+    InetSocketAddress getLocalAddress();
     /**
      * 获取目标 url
      */
-    InetSocketAddress getTargetAddress();
+    InetSocketAddress getRemoteAddress();
 
 }

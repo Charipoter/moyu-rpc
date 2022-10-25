@@ -53,8 +53,13 @@ public class MessageFuture extends CompletableFuture<Object> {
 
         if (future != null) {
             future.setReceived(received);
+            doReceive(received);
             future.complete(received.getRawMessage());
         }
+
+    }
+
+    protected static void doReceive(Message received){
 
     }
 

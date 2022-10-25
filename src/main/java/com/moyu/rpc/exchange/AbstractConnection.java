@@ -12,7 +12,7 @@ public abstract class AbstractConnection implements ListenableConnection {
     private InetSocketAddress sourceAddress;
     private InetSocketAddress targetAddress;
 
-    private List<MessageListener> listeners = new ArrayList<>();
+    private List<ConnectionListener> listeners = new ArrayList<>();
 
     public AbstractConnection(InetSocketAddress sourceAddress, InetSocketAddress targetAddress) {
         this.sourceAddress = sourceAddress;
@@ -24,28 +24,58 @@ public abstract class AbstractConnection implements ListenableConnection {
         // 放置一个 future
         MessageFuture future = MessageFuture.addFuture(message);
         doSend(future.getSent());
+        // 调用监听器
+        onSent(future.getSent());
         return future;
     }
 
     @Override
     public void receive(Message received) {
         MessageFuture.receive(received);
-        // 调用所有监听器
-        listeners.forEach(listener -> listener.onReceive(received));
+        onReceived(received);
     }
 
     @Override
-    public void addListener(MessageListener listener) {
+    public void addListener(ConnectionListener listener) {
         listeners.add(listener);
     }
 
     @Override
-    public InetSocketAddress getSourceAddress() {
+    public void onDisConnected(InetSocketAddress remoteAddress) {
+        listeners.forEach(listener -> listener.onDisConnected(remoteAddress));
+    }
+
+    @Override
+    public void onConnected(InetSocketAddress remoteAddress) {
+        listeners.forEach(listener -> listener.onConnected(remoteAddress));
+    }
+
+    @Override
+    public void onReceived(Message received) {
+        listeners.forEach(listener -> listener.onReceived(received));
+    }
+
+    @Override
+    public void onSent(Message sent) {
+        listeners.forEach(listener -> listener.onSent(sent));
+    }
+    @Override
+    public void onOpen() {
+        listeners.forEach(ConnectionListener::onOpen);
+    }
+
+    @Override
+    public void onException(Exception e) {
+        listeners.forEach(listener -> listener.onException(e));
+    }
+
+    @Override
+    public InetSocketAddress getLocalAddress() {
         return sourceAddress;
     }
 
     @Override
-    public InetSocketAddress getTargetAddress() {
+    public InetSocketAddress getRemoteAddress() {
         return targetAddress;
     }
 
