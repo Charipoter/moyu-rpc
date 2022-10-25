@@ -8,9 +8,13 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface Client extends EndPoint {
 
+    boolean isConnected();
+
     void connect();
 
-    void reConnect();
+    void reconnect();
+
+    void disconnect();
 
     InetSocketAddress getRemoteAddress();
     /**

@@ -12,9 +12,6 @@ import java.util.List;
 
 public class NettyCodec {
 
-    private static final Encoder encoder = new Encoder();
-    private static final Decoder decoder = new Decoder();
-
     public static class Encoder extends MessageToByteEncoder<Message> {
 
         @Override
@@ -36,8 +33,8 @@ public class NettyCodec {
 
     public static void apply(Channel channel) {
         channel.pipeline()
-                .addLast(encoder)
-                .addLast(decoder);
+                .addLast(new Encoder())
+                .addLast(new Decoder());
     }
 
 }

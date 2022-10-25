@@ -5,6 +5,7 @@ import com.moyu.rpc.exchange.Client;
 import com.moyu.rpc.exchange.Connection;
 import com.moyu.rpc.exchange.netty.NettyCodec;
 import com.moyu.rpc.exchange.netty.NettyConnection;
+import com.moyu.rpc.exchange.netty.RetryConnectionListener;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
@@ -16,6 +17,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.net.InetSocketAddress;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 
 public class NettyClient extends AbstractClient {
 
@@ -40,13 +42,14 @@ public class NettyClient extends AbstractClient {
 
 //        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Math.max(DEFAULT_CONNECT_TIMEOUT, getConnectTimeout()));
 
-        // 创建 handler
-        NettyClientHandler handler = new NettyClientHandler();
+        NettyConnection connection = new NettyConnection();
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
                 // 添加编解码器
                 NettyCodec.apply(ch);
+                NettyClientHandler handler = new NettyClientHandler();
+                handler.setConnection(connection);
                 ch.pipeline()
 //                        .addLast("client-idle-handler", new IdleStateHandler(heartbeatInterval, 0, 0, MILLISECONDS))
                         .addLast("handler", handler);
@@ -55,27 +58,37 @@ public class NettyClient extends AbstractClient {
         bootstrap.remoteAddress(getRemoteAddress());
         ChannelFuture future = bootstrap.connect();
 
-        // 创建连接
-        NettyConnection connection = new NettyConnection(future.channel());
+
+        connection.setChannel(future.channel());
         setConnection(connection);
         setLocalAddress(connection.getLocalAddress());
-        // 让 handler 进行桥接
-        handler.setConnection(connection);
         // 添加客户端需要的用于基本处理的监听器
         connection.addListener(new NettyClientListener());
+        connection.addListener(new RetryConnectionListener(this));
 
         future.syncUninterruptibly();
 
-        return connection;
+        return future.isSuccess() ? connection : null;
     }
 
     @Override
-    protected Connection doReConnect() {
+    protected Connection doReconnect() {
         ChannelFuture future = bootstrap.connect();
 
-        future.syncUninterruptibly();
+        future.awaitUninterruptibly(3, TimeUnit.SECONDS);
 
-        return getConnection();
+        if (future.isSuccess()) {
+            // 重连后 channel 会变
+            NettyConnection connection = (NettyConnection) getConnection();
+            connection.setChannel(future.channel());
+        }
+
+        return future.isSuccess() ? getConnection() : null;
+    }
+
+    @Override
+    protected void doDisconnect() {
+
     }
 
     @Override

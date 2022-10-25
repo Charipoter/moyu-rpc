@@ -32,7 +32,7 @@ public class NettyServer extends AbstractServer {
         workGroup = new NioEventLoopGroup();
         bootstrap = new ServerBootstrap();
 
-        NettyServerHandler handler = new NettyServerHandler();
+        connection = new NettyConnection();
         bootstrap.group(bossGroup, workGroup)
                 .channel(NioServerSocketChannel.class)
                 .option(ChannelOption.SO_REUSEADDR, true)
@@ -44,6 +44,8 @@ public class NettyServer extends AbstractServer {
                     protected void initChannel(SocketChannel ch) throws Exception {
                         // 添加编解码器
                         NettyCodec.apply(ch);
+                        NettyServerHandler handler = new NettyServerHandler();
+                        handler.setConnection(connection);
                         ch.pipeline()
 //                                .addLast("server-idle-handler", new IdleStateHandler(0, 0, idleTimeout, MILLISECONDS))
                                 .addLast("handler", handler);
@@ -52,12 +54,11 @@ public class NettyServer extends AbstractServer {
 
         ChannelFuture future = bootstrap.bind(getLocalAddress());
 
-        connection = new NettyConnection(future.channel());
+        connection.setChannel(future.channel());
         connection.setTargetAddress(getLocalAddress());
-        connection.addListener(new NettyServerListener());
         addConnection(connection);
 
-        handler.setConnection(connection);
+        connection.addListener(new NettyServerListener());
 
         future.syncUninterruptibly();
     }

@@ -93,4 +93,14 @@ public abstract class AbstractServer implements Server {
     protected void addConnection(Connection connection) {
         connectionMap.put(connection.getRemoteAddress(), connection);
     }
+
+    @Override
+    public boolean isOpen() {
+        return state.get() == OPEN;
+    }
+
+    @Override
+    public boolean isClosed() {
+        return state.get() == CLOSE;
+    }
 }

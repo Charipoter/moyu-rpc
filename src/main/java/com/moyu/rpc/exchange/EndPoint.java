@@ -7,6 +7,10 @@ import java.net.InetSocketAddress;
  */
 public interface EndPoint {
 
+    boolean isOpen();
+
+    boolean isClosed();
+
     /**
      * 每个端点由 ip:port 标识
      */

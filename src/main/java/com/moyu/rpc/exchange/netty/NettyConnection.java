@@ -11,7 +11,11 @@ import java.net.InetSocketAddress;
  */
 public class NettyConnection extends AbstractConnection {
 
-    private final Channel channel;
+    private Channel channel;
+
+    public NettyConnection() {
+
+    }
 
     public NettyConnection(Channel channel) {
         super((InetSocketAddress) channel.localAddress(), (InetSocketAddress) channel.remoteAddress());
@@ -28,5 +32,11 @@ public class NettyConnection extends AbstractConnection {
     protected void doSend(Message sent) {
         // 等待发送出去
         channel.writeAndFlush(sent).syncUninterruptibly();
+    }
+
+    public void setChannel(Channel channel) {
+        this.channel = channel;
+        setSourceAddress((InetSocketAddress) channel.localAddress());
+        setTargetAddress((InetSocketAddress) channel.remoteAddress());
     }
 }

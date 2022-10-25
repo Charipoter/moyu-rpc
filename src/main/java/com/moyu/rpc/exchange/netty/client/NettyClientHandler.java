@@ -4,12 +4,10 @@ import com.moyu.rpc.exchange.ListenableConnection;
 import com.moyu.rpc.exchange.Message;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 
 @Getter
 @Setter
@@ -33,10 +31,10 @@ public class NettyClientHandler extends ChannelDuplexHandler {
     }
 
     @Override
-    public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) throws Exception {
-        ctx.connect(remoteAddress, localAddress, promise);
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        connection.onConnected((InetSocketAddress) ctx.channel().remoteAddress());
 
-        connection.onConnected((InetSocketAddress) remoteAddress);
+        ctx.fireChannelActive();
     }
 
     @Override

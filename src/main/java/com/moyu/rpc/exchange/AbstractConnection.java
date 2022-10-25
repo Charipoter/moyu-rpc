@@ -1,5 +1,6 @@
 package com.moyu.rpc.exchange;
 
+import lombok.Getter;
 import lombok.Setter;
 
 import java.net.InetSocketAddress;
@@ -8,11 +9,16 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 @Setter
+@Getter
 public abstract class AbstractConnection implements ListenableConnection {
     private InetSocketAddress sourceAddress;
     private InetSocketAddress targetAddress;
 
     private List<ConnectionListener> listeners = new ArrayList<>();
+
+    public AbstractConnection() {
+
+    }
 
     public AbstractConnection(InetSocketAddress sourceAddress, InetSocketAddress targetAddress) {
         this.sourceAddress = sourceAddress;
