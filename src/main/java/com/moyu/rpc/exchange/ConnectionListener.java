@@ -10,24 +10,30 @@ public interface ConnectionListener {
     /**
      * 收到了消息
      */
-    void onReceived(Message received);
+    default void onReceived(Message received) {
+    }
     /**
      * 与远程建立了连接
      */
-    void onConnected(InetSocketAddress remoteAddress);
+     default void onConnected(InetSocketAddress remoteAddress) {
+     }
     /**
      * 与远程断开了连接
      */
-    void onDisConnected(InetSocketAddress remoteAddress);
+    default void onDisConnected(InetSocketAddress remoteAddress) {
+    }
     /**
      * 发送了消息
      */
-    void onSent(Message sent);
+    default void onSent(Message sent) {
+    }
     /**
      * 连接可正常运作
      */
-    void onOpen();
+    default void onOpen() {
+    }
 
-    void onException(Exception e);
+    default void onException(Exception e) {
+    }
 
 }

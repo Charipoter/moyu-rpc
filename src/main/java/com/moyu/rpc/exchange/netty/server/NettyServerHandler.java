@@ -1,7 +1,11 @@
 package com.moyu.rpc.exchange.netty.server;
 
+import com.moyu.rpc.exchange.AbstractServer;
 import com.moyu.rpc.exchange.ListenableConnection;
 import com.moyu.rpc.exchange.Message;
+import com.moyu.rpc.exchange.Server;
+import com.moyu.rpc.exchange.netty.NettyConnection;
+import com.moyu.rpc.exchange.netty.listener.ServerLogListener;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.Getter;
@@ -15,6 +19,8 @@ public class NettyServerHandler extends ChannelDuplexHandler {
 
     private ListenableConnection connection;
 
+    private Server server;
+
     public NettyServerHandler() {
 
     }
@@ -22,14 +28,21 @@ public class NettyServerHandler extends ChannelDuplexHandler {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         connection.onReceived((Message) msg);
-        // 返还消息
-        ctx.writeAndFlush(msg);
+
         ctx.fireChannelRead(msg);
     }
 
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        connection.onConnected((InetSocketAddress) ctx.channel().remoteAddress());
+        InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+        // 将连接放入 map
+        NettyConnection newConnection = new NettyConnection();
+        newConnection.setTargetAddress(remoteAddress);
+        newConnection.addListener(new ServerLogListener());
+        newConnection.setChannel(ctx.channel());
+        server.addConnection(newConnection);
+
+        connection.onConnected(remoteAddress);
 
         ctx.fireChannelRegistered();
     }
@@ -45,4 +58,5 @@ public class NettyServerHandler extends ChannelDuplexHandler {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         connection.onException((Exception) cause);
     }
+
 }

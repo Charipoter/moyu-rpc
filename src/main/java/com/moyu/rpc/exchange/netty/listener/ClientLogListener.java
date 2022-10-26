@@ -1,13 +1,13 @@
-package com.moyu.rpc.exchange.netty.client;
+package com.moyu.rpc.exchange.netty.listener;
 
-import com.moyu.rpc.exchange.AbstractListener;
+import com.moyu.rpc.exchange.ConnectionListener;
 import com.moyu.rpc.exchange.Message;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
 
 @Slf4j
-public class NettyClientListener extends AbstractListener {
+public class ClientLogListener implements ConnectionListener {
 
     @Override
     public void onConnected(InetSocketAddress remoteAddress) {

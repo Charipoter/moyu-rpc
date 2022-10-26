@@ -1,28 +1,57 @@
 package com.moyu.rpc.exchange;
 
+import com.moyu.rpc.timer.Timer;
+import com.moyu.rpc.timer.support.TimeWheelTimer;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
 
+/**
+ * client 基本抽象类
+ */
+@Slf4j
 @Getter
 @Setter
 public abstract class AbstractClient implements Client {
+    /**
+     * 初始状态，该状态之后不会再被到达
+     */
+    protected static final int NEW = 0;
+    /**
+     * 正在连接中
+     */
+    protected static final int CONNECTING = 1;
+    /**
+     * 未建立连接，该状态可多次到达
+     */
+    protected static final int NOT_CONNECTED = 2;
+    /**
+     * 连接已建立
+     */
+    protected static final int CONNECTED = 3;
+    /**
+     * 客户端已关闭，不再提供服务
+     */
+    protected static final int CLOSE = -1;
 
-    private static final int NEW = 0;
-    private static final int OPEN = 1;
+    protected Connection clientConnection;
+    protected InetSocketAddress localAddress;
 
-    private static final int CONNECTED = 2;
+    protected InetSocketAddress remoteAddress;
+    /**
+     * 如果连接失败了，等多久再重试，毫秒单位
+     */
+    protected int reconnectionInterval = 1000;
+    /**
+     * 连接时间限制，毫秒单位
+     */
+    protected int connectionTimeout = 3000;
 
-    private static final int NOT_CONNECTED = -2;
-    private static final int CLOSE = -1;
-
-    private AtomicInteger state = new AtomicInteger(NEW);
-    private Connection connection;
-    private InetSocketAddress localAddress;
-    private InetSocketAddress remoteAddress;
+    protected final Timer timer = new TimeWheelTimer(1, TimeUnit.SECONDS);
 
     public AbstractClient(InetSocketAddress remoteAddress) {
         this.remoteAddress = remoteAddress;
@@ -35,7 +64,7 @@ public abstract class AbstractClient implements Client {
 
     @Override
     public CompletableFuture<Object> send(Object message) {
-        return connection.send(message);
+        return clientConnection.send(message);
     }
 
     @Override
@@ -43,97 +72,11 @@ public abstract class AbstractClient implements Client {
         return localAddress;
     }
 
-    @Override
-    public void open() {
-
-        int s = state.get();
-        if (s == OPEN) {
-
-        } else if (s == CLOSE && state.compareAndSet(CLOSE, OPEN)) {
-            // 关闭了又开启，对于客户端属于重连的情形
-            reconnect();
-        } else if (s == NEW && state.compareAndSet(NEW, OPEN)) {
-            connect();
-        } else {
-            throw new RuntimeException("不存在的客户端状态");
-        }
-    }
-
-    @Override
-    public synchronized void connect() {
-        // 交给子类完成
-        try {
-            if (state.get() != CONNECTED) {
-                connection = doConnect();
-                if (connection != null) {
-                    state.compareAndSet(OPEN, CONNECTED);
-                }
-            }
-        } catch (Exception e) {
-
-        }
-    }
-
     protected abstract Connection doConnect();
-
-    @Override
-    public synchronized void reconnect() {
-
-        try {// 交给子类完成
-            disconnect();
-            if (state.get() == NOT_CONNECTED) {
-                if (doReconnect() != null) {
-                    state.compareAndSet(NOT_CONNECTED, CONNECTED);
-                }
-            }
-        } catch (Exception e) {
-
-        }
-    }
 
     protected abstract Connection doReconnect();
 
-    @Override
-    public void disconnect() {
-        try {
-            if (state.get() == CONNECTED) {
-                doDisconnect();
-                state.compareAndSet(CONNECTED, NOT_CONNECTED);
-            }
-        } catch (Exception e) {
-
-        }
-    }
-
     protected abstract void doDisconnect();
 
-    @Override
-    public synchronized void close() {
-        int s = state.get();
-        if (s == CLOSE) {
-            return;
-        }
-        state.set(CLOSE);
-        connection.close();
-        // 进行额外资源的关闭
-        doClose();
-
-    }
-
     protected abstract void doClose();
-
-    @Override
-    public boolean isOpen() {
-        return state.get() == OPEN;
-    }
-
-    @Override
-    public boolean isClosed() {
-        return state.get() == CLOSE;
-    }
-
-    @Override
-    public boolean isConnected() {
-        return state.get() == CONNECTED;
-    }
 }

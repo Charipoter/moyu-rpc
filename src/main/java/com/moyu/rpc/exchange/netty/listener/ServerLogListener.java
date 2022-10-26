@@ -1,14 +1,13 @@
-package com.moyu.rpc.exchange.netty.server;
+package com.moyu.rpc.exchange.netty.listener;
 
-import com.moyu.rpc.exchange.AbstractListener;
+import com.moyu.rpc.exchange.ConnectionListener;
 import com.moyu.rpc.exchange.Message;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
 
 @Slf4j
-public class NettyServerListener extends AbstractListener {
-
+public class ServerLogListener implements ConnectionListener {
     @Override
     public void onDisConnected(InetSocketAddress remoteAddress) {
         log.info("{} 已断开连接", remoteAddress);

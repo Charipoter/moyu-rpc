@@ -1,11 +1,12 @@
 package com.moyu.rpc.exchange.netty.client;
 
-import com.moyu.rpc.exchange.AbstractClient;
+import com.moyu.rpc.exchange.AbstractConcurrentClient;
 import com.moyu.rpc.exchange.Client;
 import com.moyu.rpc.exchange.Connection;
 import com.moyu.rpc.exchange.netty.NettyCodec;
 import com.moyu.rpc.exchange.netty.NettyConnection;
-import com.moyu.rpc.exchange.netty.RetryConnectionListener;
+import com.moyu.rpc.exchange.netty.listener.ClientLogListener;
+import com.moyu.rpc.exchange.netty.listener.ReconnectListener;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
@@ -17,15 +18,14 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.net.InetSocketAddress;
 import java.util.Scanner;
-import java.util.concurrent.TimeUnit;
 
-public class NettyClient extends AbstractClient {
+public class ConcurrentNettyClient extends AbstractConcurrentClient {
 
     private Bootstrap bootstrap;
 
     private NioEventLoopGroup workGroup;
 
-    public NettyClient(InetSocketAddress remoteAddress) {
+    public ConcurrentNettyClient(InetSocketAddress remoteAddress) {
         super(remoteAddress);
     }
 
@@ -37,10 +37,8 @@ public class NettyClient extends AbstractClient {
                 .option(ChannelOption.SO_KEEPALIVE, true)
                 .option(ChannelOption.TCP_NODELAY, true)
                 .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
-                //.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, getTimeout())
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, getConnectionTimeout())
                 .channel(NioSocketChannel.class);
-
-//        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Math.max(DEFAULT_CONNECT_TIMEOUT, getConnectTimeout()));
 
         NettyConnection connection = new NettyConnection();
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
@@ -48,8 +46,10 @@ public class NettyClient extends AbstractClient {
             protected void initChannel(SocketChannel ch) throws Exception {
                 // 添加编解码器
                 NettyCodec.apply(ch);
+
                 NettyClientHandler handler = new NettyClientHandler();
                 handler.setConnection(connection);
+
                 ch.pipeline()
 //                        .addLast("client-idle-handler", new IdleStateHandler(heartbeatInterval, 0, 0, MILLISECONDS))
                         .addLast("handler", handler);
@@ -58,32 +58,36 @@ public class NettyClient extends AbstractClient {
         bootstrap.remoteAddress(getRemoteAddress());
         ChannelFuture future = bootstrap.connect();
 
-
         connection.setChannel(future.channel());
-        setConnection(connection);
+        // 保证有一个非 null 的连接，不管有不有效
+        setClientConnection(connection);
+        // 获取被分配的地址
         setLocalAddress(connection.getLocalAddress());
         // 添加客户端需要的用于基本处理的监听器
-        connection.addListener(new NettyClientListener());
-        connection.addListener(new RetryConnectionListener(this));
+        connection.addListener(new ClientLogListener());
+        connection.addListener(new ReconnectListener(this));
 
-        future.syncUninterruptibly();
+        future.awaitUninterruptibly(getConnectionTimeout());
 
-        return future.isSuccess() ? connection : null;
+        return connection;
     }
 
     @Override
     protected Connection doReconnect() {
+        // 新创建一个 channel 尝试连接
         ChannelFuture future = bootstrap.connect();
 
-        future.awaitUninterruptibly(3, TimeUnit.SECONDS);
+        future.awaitUninterruptibly(getConnectionTimeout());
 
-        if (future.isSuccess()) {
-            // 重连后 channel 会变
-            NettyConnection connection = (NettyConnection) getConnection();
-            connection.setChannel(future.channel());
+        NettyConnection connection = (NettyConnection) getClientConnection();
+
+        if (connection == null) {
+            throw new RuntimeException("connection 为 null，业务错误");
         }
+        // 重连后 channel 会变
+        connection.setChannel(future.channel());
 
-        return future.isSuccess() ? getConnection() : null;
+        return connection;
     }
 
     @Override
@@ -98,7 +102,7 @@ public class NettyClient extends AbstractClient {
     }
 
     public static void main(String[] args) {
-        Client client = new NettyClient(new InetSocketAddress("localhost", 8080));
+        Client client = new ConcurrentNettyClient(new InetSocketAddress("localhost", 8080));
         client.open();
 
         Scanner scanner = new Scanner(System.in);

@@ -15,4 +15,9 @@ public interface Server extends EndPoint {
 
     CompletableFuture<Object> broadcast(Object message);
 
+    /**
+     * 添加一个与客户端的连接
+     */
+    void addConnection(Connection connection);
+
 }

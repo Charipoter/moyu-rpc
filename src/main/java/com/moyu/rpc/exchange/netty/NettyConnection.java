@@ -29,6 +29,11 @@ public class NettyConnection extends AbstractConnection {
     }
 
     @Override
+    public boolean isActive() {
+        return channel.isActive();
+    }
+
+    @Override
     protected void doSend(Message sent) {
         // 等待发送出去
         channel.writeAndFlush(sent).syncUninterruptibly();

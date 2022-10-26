@@ -14,6 +14,10 @@ public interface Connection {
      */
     void close();
     /**
+     * 连接是否有效
+     */
+    boolean isActive();
+    /**
      * 收到数据
      * 需要往具体的连接器注册消息接收监听
      */

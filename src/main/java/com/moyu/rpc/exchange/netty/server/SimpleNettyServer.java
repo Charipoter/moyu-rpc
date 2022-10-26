@@ -1,9 +1,10 @@
 package com.moyu.rpc.exchange.netty.server;
 
-import com.moyu.rpc.exchange.AbstractServer;
+import com.moyu.rpc.exchange.AbstractSimpleServer;
 import com.moyu.rpc.exchange.Server;
 import com.moyu.rpc.exchange.netty.NettyCodec;
 import com.moyu.rpc.exchange.netty.NettyConnection;
+import com.moyu.rpc.exchange.netty.listener.ServerLogListener;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
@@ -14,25 +15,30 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 
 import java.net.InetSocketAddress;
+import java.util.Scanner;
 
-public class NettyServer extends AbstractServer {
-
+public class SimpleNettyServer extends AbstractSimpleServer {
     private ServerBootstrap bootstrap;
     private NioEventLoopGroup bossGroup;
     private NioEventLoopGroup workGroup;
-    private NettyConnection connection;
 
-    public NettyServer(InetSocketAddress localAddress) {
+
+    public SimpleNettyServer(InetSocketAddress localAddress) {
         super(localAddress);
     }
 
     @Override
     protected void doOpen() {
+
         bossGroup = new NioEventLoopGroup(1);
         workGroup = new NioEventLoopGroup();
         bootstrap = new ServerBootstrap();
 
-        connection = new NettyConnection();
+        NettyConnection connection = new NettyConnection();
+        NettyServerHandler handler = new NettyServerHandler();
+        handler.setConnection(connection);
+        handler.setServer(this);
+
         bootstrap.group(bossGroup, workGroup)
                 .channel(NioServerSocketChannel.class)
                 .option(ChannelOption.SO_REUSEADDR, true)
@@ -44,8 +50,6 @@ public class NettyServer extends AbstractServer {
                     protected void initChannel(SocketChannel ch) throws Exception {
                         // 添加编解码器
                         NettyCodec.apply(ch);
-                        NettyServerHandler handler = new NettyServerHandler();
-                        handler.setConnection(connection);
                         ch.pipeline()
 //                                .addLast("server-idle-handler", new IdleStateHandler(0, 0, idleTimeout, MILLISECONDS))
                                 .addLast("handler", handler);
@@ -56,9 +60,8 @@ public class NettyServer extends AbstractServer {
 
         connection.setChannel(future.channel());
         connection.setTargetAddress(getLocalAddress());
-        addConnection(connection);
-
-        connection.addListener(new NettyServerListener());
+        connection.addListener(new ServerLogListener());
+        setServerConnection(connection);
 
         future.syncUninterruptibly();
     }
@@ -70,7 +73,17 @@ public class NettyServer extends AbstractServer {
     }
 
     public static void main(String[] args) {
-        Server server = new NettyServer(new InetSocketAddress("localhost", 8080));
+        Server server = new SimpleNettyServer(new InetSocketAddress("localhost", 8080));
         server.open();
+
+        Scanner scanner = new Scanner(System.in);
+        for (;;) {
+            String msg = scanner.nextLine();
+            if (msg.equals("quit")) {
+                server.close();
+                break;
+            }
+            server.broadcast(msg);
+        }
     }
 }
